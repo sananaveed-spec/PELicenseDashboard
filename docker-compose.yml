@@ -13,7 +13,8 @@ services:
         NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS: ${NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS:-allumiax.com,epsfresno.com}
         NEXT_PUBLIC_AZURE_AUTHORITY: ${NEXT_PUBLIC_AZURE_AUTHORITY:-https://login.microsoftonline.com/organizations}
     ports:
-      - "3000:3000"
+      # Host 3000 is used by Utilization Dashboard; expose PE License on 3001
+      - "3001:3000"
     env_file:
       - .env
     environment:

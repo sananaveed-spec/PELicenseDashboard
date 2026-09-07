@@ -1,7 +1,7 @@
 "use client";
 
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AuthHeader } from "@/components/AuthHeader";
 import { AddUserDialog } from "@/components/AddUserDialog";
 import { DashboardFilters } from "@/components/DashboardFilters";
@@ -21,6 +21,16 @@ import {
 import { ALL_STATES_VALUE } from "@/lib/us-states";
 import { initialEngineers } from "@/lib/engineers";
 import { LicenseEditDialog } from "@/components/LicenseEditDialog";
+
+function withFileNames(
+  licenses: PeLicense[],
+  files: Record<string, string>,
+): PeLicense[] {
+  return licenses.map((license) => ({
+    ...license,
+    fileName: files[license.id] ?? license.fileName ?? null,
+  }));
+}
 
 export default function Home() {
   const isAuthenticated = useIsAuthenticated();
@@ -42,6 +52,35 @@ export default function Home() {
   const isAuthorized =
     isAuthenticated && isAllowedOrganizationEmail(authenticatedEmail);
   const displayName = accounts[0]?.name ?? authenticatedEmail;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFiles() {
+      try {
+        const response = await fetch("/api/files");
+        if (!response.ok) {
+          return;
+        }
+        const data = (await response.json()) as {
+          files?: Record<string, string>;
+        };
+        if (cancelled || !data.files) {
+          return;
+        }
+
+        setLicenses((current) => withFileNames(current, data.files!));
+        setResults((current) => withFileNames(current, data.files!));
+      } catch {
+        // File metadata is optional on first load.
+      }
+    }
+
+    void loadFiles();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function handleSearch() {
     if (!selectedName) {
@@ -76,6 +115,9 @@ export default function Home() {
     setResults((current) =>
       current.filter((license) => license.id !== licenseId),
     );
+    void fetch(`/api/files/${encodeURIComponent(licenseId)}`, {
+      method: "DELETE",
+    });
   }
 
   function handleAddLicenseClick() {
@@ -124,6 +166,10 @@ export default function Home() {
       return;
     }
 
+    const removedIds = licenses
+      .filter((license) => license.engineerName === selectedName)
+      .map((license) => license.id);
+
     setEngineerNames((current) =>
       current.filter((name) => name !== selectedName),
     );
@@ -134,6 +180,12 @@ export default function Home() {
     setHasSearched(false);
     setSelectedName("");
     setSearchError(null);
+
+    for (const licenseId of removedIds) {
+      void fetch(`/api/files/${encodeURIComponent(licenseId)}`, {
+        method: "DELETE",
+      });
+    }
   }
 
   function handleSaveNewLicense(newLicense: PeLicense) {

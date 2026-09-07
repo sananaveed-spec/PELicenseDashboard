@@ -248,6 +248,20 @@ body {
   font-size: 0.85rem;
 }
 
+.button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 0.45rem;
+}
+
+.button-icon svg {
+  display: block;
+}
+
 .hint {
   color: #94a3b8;
   font-size: 0.95rem;
@@ -374,6 +388,56 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.file-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 8rem;
+}
+
+.file-cell-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.file-name {
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  word-break: break-word;
+  max-width: 10rem;
+}
+
+.file-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.file-field-current {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+
+.file-field-current a {
+  color: #93c5fd;
+}
+
+.verify-online-link {
+  color: #93c5fd;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.verify-online-link:hover {
+  color: #bfdbfe;
 }
 
 .table-empty {

@@ -11,7 +11,12 @@ export type PeLicense = {
   issueDate: string;
   expiryDate: string;
   issuingAuthority: string;
-  comments: string;
+  address: string;
+  associatedBusinessName: string;
+  /** URL used for the Verify Online link. */
+  verifyOnlineUrl: string;
+  /** Original PDF file name when a document is attached; null if none. */
+  fileName: string | null;
 };
 
 export type PeLicenseInput = Omit<PeLicense, "id">;
@@ -40,7 +45,10 @@ export const initialLicenses: PeLicense[] = [
     expiryDate: "12/31/2027",
     issuingAuthority:
       "Board of Professional Engineers, Land Surveyors and Geologists",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-az-abdur-rehman",
@@ -52,7 +60,10 @@ export const initialLicenses: PeLicense[] = [
     issueDate: "12/3/2018",
     expiryDate: "3/31/2025",
     issuingAuthority: "Arizona State Board of Technical Registration",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-id-abdur-rehman",
@@ -64,7 +75,10 @@ export const initialLicenses: PeLicense[] = [
     issueDate: "9/28/2024",
     expiryDate: "9/30/2026",
     issuingAuthority: "Division of Occupational & Professional Licenses",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-ut-abdur-rehman",
@@ -76,7 +90,10 @@ export const initialLicenses: PeLicense[] = [
     issueDate: "1/30/2019",
     expiryDate: "3/31/2025",
     issuingAuthority: "Utah Division of Professional Licensing",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-ma-abdur-rehman",
@@ -88,7 +105,10 @@ export const initialLicenses: PeLicense[] = [
     issueDate: "5/25/2019",
     expiryDate: "6/30/2026",
     issuingAuthority: "",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-hi-abdur-rehman",
@@ -100,7 +120,10 @@ export const initialLicenses: PeLicense[] = [
     issueDate: "1/23/2019",
     expiryDate: "4/30/2026",
     issuingAuthority: "DCCA Professional Vocational Licensing",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-tx-abdur-rehman",
@@ -112,7 +135,10 @@ export const initialLicenses: PeLicense[] = [
     issueDate: "12/19/2018",
     expiryDate: "9/30/2026",
     issuingAuthority: "",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-co-abdur-rehman",
@@ -124,7 +150,10 @@ export const initialLicenses: PeLicense[] = [
     issueDate: "11/15/2018",
     expiryDate: "10/31/2027",
     issuingAuthority: "CO Dept. of Regulatory Agencies",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-wa-abdur-rehman",
@@ -136,7 +165,10 @@ export const initialLicenses: PeLicense[] = [
     issueDate: "12/16/2016",
     expiryDate: "9/29/2027",
     issuingAuthority: "WA State Dept. of Licensing",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-or-abdur-rehman",
@@ -149,7 +181,10 @@ export const initialLicenses: PeLicense[] = [
     expiryDate: "12/31/2024",
     issuingAuthority:
       "Oregon State Board of Examiners for Engineering & Land Surveying",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-ks-abdur-rehman",
@@ -161,7 +196,10 @@ export const initialLicenses: PeLicense[] = [
     issueDate: "",
     expiryDate: "4/30/2027",
     issuingAuthority: "",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
   {
     id: "license-ca-muhammad-zulfiqar-ijaz",
@@ -173,7 +211,10 @@ export const initialLicenses: PeLicense[] = [
     issueDate: "",
     expiryDate: "",
     issuingAuthority: "",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   },
 ];
 
@@ -208,7 +249,10 @@ export function createEmptyLicense(
     issueDate: "",
     expiryDate: "",
     issuingAuthority: "",
-    comments: "",
+    address: "",
+    associatedBusinessName: "",
+    verifyOnlineUrl: "",
+    fileName: null,
   };
 }
 

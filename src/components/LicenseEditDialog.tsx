@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PeLicense } from "@/lib/licenses";
 import {
   getRenewalStatus,
@@ -13,6 +13,8 @@ type LicenseEditDialogProps = {
   license: PeLicense;
   mode?: "add" | "edit";
   onSave: (license: PeLicense) => void;
+  /** Called immediately when the attached PDF changes (replace/remove/upload). */
+  onChange?: (license: PeLicense) => void;
   onClose: () => void;
 };
 
@@ -20,9 +22,13 @@ export function LicenseEditDialog({
   license,
   mode = "edit",
   onSave,
+  onChange,
   onClose,
 }: LicenseEditDialogProps) {
   const [draft, setDraft] = useState(license);
+  const [fileBusy, setFileBusy] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setDraft(license);
@@ -47,6 +53,76 @@ export function LicenseEditDialog({
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     onSave(draft);
+  }
+
+  async function handleUpload(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    setFileError(null);
+    setFileBusy(true);
+
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch(`/api/files/${encodeURIComponent(draft.id)}`, {
+        method: "POST",
+        body,
+      });
+      const data = (await response.json()) as { fileName?: string; error?: string };
+
+      if (!response.ok || !data.fileName) {
+        throw new Error(data.error || "Upload failed.");
+      }
+
+      const updated = { ...draft, fileName: data.fileName };
+      setDraft(updated);
+      onChange?.(updated);
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      setFileBusy(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
+
+  async function handleRemoveFile() {
+    if (!draft.fileName) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remove PDF "${draft.fileName}" from this license?`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setFileError(null);
+    setFileBusy(true);
+
+    try {
+      const response = await fetch(`/api/files/${encodeURIComponent(draft.id)}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string };
+        throw new Error(data.error || "Could not remove file.");
+      }
+
+      const updated = { ...draft, fileName: null };
+      setDraft(updated);
+      onChange?.(updated);
+    } catch (error) {
+      setFileError(
+        error instanceof Error ? error.message : "Could not remove file.",
+      );
+    } finally {
+      setFileBusy(false);
+    }
   }
 
   const renewalStatus = getRenewalStatus(draft.expiryDate);
@@ -149,16 +225,110 @@ export function LicenseEditDialog({
             </p>
           </div>
 
-          <label className="field-label" htmlFor="edit-comments">
-            Comments
+          <label className="field-label" htmlFor="edit-address">
+            Address
           </label>
-          <textarea
-            id="edit-comments"
-            className="field-textarea"
-            rows={3}
-            value={draft.comments}
-            onChange={(event) => updateField("comments", event.target.value)}
+          <input
+            id="edit-address"
+            className="field-input"
+            value={draft.address}
+            onChange={(event) => updateField("address", event.target.value)}
           />
+
+          <label className="field-label" htmlFor="edit-business-name">
+            Associated Business Name
+          </label>
+          <input
+            id="edit-business-name"
+            className="field-input"
+            value={draft.associatedBusinessName}
+            onChange={(event) =>
+              updateField("associatedBusinessName", event.target.value)
+            }
+          />
+
+          <label className="field-label" htmlFor="edit-verify-online">
+            Verify Online (URL)
+          </label>
+          <input
+            id="edit-verify-online"
+            className="field-input"
+            type="url"
+            placeholder="https://..."
+            value={draft.verifyOnlineUrl}
+            onChange={(event) =>
+              updateField("verifyOnlineUrl", event.target.value)
+            }
+          />
+
+          <div className="file-field">
+            <span className="field-label">File (PDF)</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="file-input-hidden"
+              disabled={fileBusy}
+              onChange={(event) => void handleUpload(event.target.files?.[0])}
+            />
+
+            {draft.fileName ? (
+              <>
+                <p className="file-field-current">
+                  Current: <strong>{draft.fileName}</strong>
+                </p>
+                <div className="row-actions">
+                  <a
+                    className="button secondary button-small"
+                    href={`/api/files/${encodeURIComponent(draft.id)}`}
+                    download={draft.fileName}
+                  >
+                    Download
+                  </a>
+                  <button
+                    type="button"
+                    className="button secondary button-small"
+                    disabled={fileBusy}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {fileBusy ? "Working…" : "Replace PDF"}
+                  </button>
+                  <button
+                    type="button"
+                    className="button danger button-small"
+                    disabled={fileBusy}
+                    onClick={() => void handleRemoveFile()}
+                  >
+                    Remove PDF
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="renewal-status-hint">
+                  {mode === "add"
+                    ? "Save the license first, then upload a PDF from the File column or reopen Edit."
+                    : "No PDF attached yet."}
+                </p>
+                {mode === "edit" ? (
+                  <button
+                    type="button"
+                    className="button secondary button-small"
+                    disabled={fileBusy}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {fileBusy ? "Uploading…" : "Upload PDF"}
+                  </button>
+                ) : null}
+              </>
+            )}
+
+            {fileError ? (
+              <p className="form-message error" role="alert">
+                {fileError}
+              </p>
+            ) : null}
+          </div>
 
           <div className="dialog-actions">
             <button type="button" className="button secondary" onClick={onClose}>

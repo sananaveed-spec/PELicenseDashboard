@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile, unlink, readdir } from "fs/promises";
 import path from "path";
+import { getDataDir } from "@/lib/data-store";
 
 const MAX_PDF_BYTES = 15 * 1024 * 1024;
 
@@ -7,10 +8,6 @@ export type FileMeta = {
   fileName: string;
   uploadedAt: string;
 };
-
-function getDataDir() {
-  return process.env.DATA_DIR?.trim() || path.join(process.cwd(), "data");
-}
 
 function getUploadsDir() {
   return path.join(getDataDir(), "uploads");

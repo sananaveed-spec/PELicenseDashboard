@@ -14,38 +14,50 @@ import {
 } from "@/auth/organization";
 import {
   createNewLicense,
-  initialLicenses,
   searchLicenses,
   type PeLicense,
 } from "@/lib/licenses";
 import { ALL_STATES_VALUE } from "@/lib/us-states";
-import { initialEngineers } from "@/lib/engineers";
 import { LicenseEditDialog } from "@/components/LicenseEditDialog";
 
-function withFileNames(
-  licenses: PeLicense[],
-  files: Record<string, string>,
-): PeLicense[] {
-  return licenses.map((license) => ({
-    ...license,
-    fileName: files[license.id] ?? license.fileName ?? null,
-  }));
+async function persistLicenses(licenses: PeLicense[]) {
+  const response = await fetch("/api/licenses", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ licenses }),
+  });
+  if (!response.ok) {
+    const data = (await response.json()) as { error?: string };
+    throw new Error(data.error || "Failed to save licenses.");
+  }
+}
+
+async function persistEngineers(engineers: string[]) {
+  const response = await fetch("/api/engineers", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ engineers }),
+  });
+  if (!response.ok) {
+    const data = (await response.json()) as { error?: string };
+    throw new Error(data.error || "Failed to save engineers.");
+  }
 }
 
 export default function Home() {
   const isAuthenticated = useIsAuthenticated();
   const { accounts } = useMsal();
-  const [engineerNames, setEngineerNames] = useState<string[]>([
-    ...initialEngineers,
-  ]);
+  const [engineerNames, setEngineerNames] = useState<string[]>([]);
   const [selectedName, setSelectedName] = useState("");
   const [selectedState, setSelectedState] = useState(ALL_STATES_VALUE);
-  const [licenses, setLicenses] = useState<PeLicense[]>(initialLicenses);
+  const [licenses, setLicenses] = useState<PeLicense[]>([]);
   const [results, setResults] = useState<PeLicense[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [addingLicense, setAddingLicense] = useState<PeLicense | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
   const authenticatedEmail = isAuthenticated
     ? getAccountEmail(accounts[0])
     : "";
@@ -56,27 +68,47 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadFiles() {
+    async function loadDashboardData() {
       try {
-        const response = await fetch("/api/files");
-        if (!response.ok) {
-          return;
+        const [licensesResponse, engineersResponse] = await Promise.all([
+          fetch("/api/licenses"),
+          fetch("/api/engineers"),
+        ]);
+
+        if (!licensesResponse.ok || !engineersResponse.ok) {
+          throw new Error("Could not load saved dashboard data.");
         }
-        const data = (await response.json()) as {
-          files?: Record<string, string>;
+
+        const licensesData = (await licensesResponse.json()) as {
+          licenses?: PeLicense[];
         };
-        if (cancelled || !data.files) {
+        const engineersData = (await engineersResponse.json()) as {
+          engineers?: string[];
+        };
+
+        if (cancelled) {
           return;
         }
 
-        setLicenses((current) => withFileNames(current, data.files!));
-        setResults((current) => withFileNames(current, data.files!));
-      } catch {
-        // File metadata is optional on first load.
+        setLicenses(licensesData.licenses ?? []);
+        setEngineerNames(engineersData.engineers ?? []);
+        setDataError(null);
+      } catch (error) {
+        if (!cancelled) {
+          setDataError(
+            error instanceof Error
+              ? error.message
+              : "Could not load saved dashboard data.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setDataReady(true);
+        }
       }
     }
 
-    void loadFiles();
+    void loadDashboardData();
     return () => {
       cancelled = true;
     };
@@ -96,25 +128,33 @@ export default function Home() {
   }
 
   function handleUpdateLicense(updatedLicense: PeLicense) {
-    setLicenses((current) =>
-      current.map((license) =>
-        license.id === updatedLicense.id ? updatedLicense : license,
-      ),
+    const nextLicenses = licenses.map((license) =>
+      license.id === updatedLicense.id ? updatedLicense : license,
     );
-    setResults((current) =>
-      current.map((license) =>
-        license.id === updatedLicense.id ? updatedLicense : license,
-      ),
+    const nextResults = results.map((license) =>
+      license.id === updatedLicense.id ? updatedLicense : license,
     );
+
+    setLicenses(nextLicenses);
+    setResults(nextResults);
+    void persistLicenses(nextLicenses).catch((error: unknown) => {
+      setSearchError(
+        error instanceof Error ? error.message : "Failed to save license.",
+      );
+    });
   }
 
   function handleDeleteLicense(licenseId: string) {
-    setLicenses((current) =>
-      current.filter((license) => license.id !== licenseId),
-    );
-    setResults((current) =>
-      current.filter((license) => license.id !== licenseId),
-    );
+    const nextLicenses = licenses.filter((license) => license.id !== licenseId);
+    const nextResults = results.filter((license) => license.id !== licenseId);
+
+    setLicenses(nextLicenses);
+    setResults(nextResults);
+    void persistLicenses(nextLicenses).catch((error: unknown) => {
+      setSearchError(
+        error instanceof Error ? error.message : "Failed to save licenses.",
+      );
+    });
     void fetch(`/api/files/${encodeURIComponent(licenseId)}`, {
       method: "DELETE",
     });
@@ -144,12 +184,18 @@ export default function Home() {
       return;
     }
 
-    setEngineerNames((current) =>
-      [...current, name].sort((a, b) => a.localeCompare(b)),
+    const nextEngineers = [...engineerNames, name].sort((a, b) =>
+      a.localeCompare(b),
     );
+    setEngineerNames(nextEngineers);
     setSelectedName(name);
     setSearchError(null);
     setIsAddingUser(false);
+    void persistEngineers(nextEngineers).catch((error: unknown) => {
+      setSearchError(
+        error instanceof Error ? error.message : "Failed to save user.",
+      );
+    });
   }
 
   function handleDeleteUser() {
@@ -170,16 +216,28 @@ export default function Home() {
       .filter((license) => license.engineerName === selectedName)
       .map((license) => license.id);
 
-    setEngineerNames((current) =>
-      current.filter((name) => name !== selectedName),
+    const nextEngineers = engineerNames.filter((name) => name !== selectedName);
+    const nextLicenses = licenses.filter(
+      (license) => license.engineerName !== selectedName,
     );
-    setLicenses((current) =>
-      current.filter((license) => license.engineerName !== selectedName),
-    );
+
+    setEngineerNames(nextEngineers);
+    setLicenses(nextLicenses);
     setResults([]);
     setHasSearched(false);
     setSelectedName("");
     setSearchError(null);
+
+    void persistEngineers(nextEngineers).catch((error: unknown) => {
+      setSearchError(
+        error instanceof Error ? error.message : "Failed to save users.",
+      );
+    });
+    void persistLicenses(nextLicenses).catch((error: unknown) => {
+      setSearchError(
+        error instanceof Error ? error.message : "Failed to save licenses.",
+      );
+    });
 
     for (const licenseId of removedIds) {
       void fetch(`/api/files/${encodeURIComponent(licenseId)}`, {
@@ -192,6 +250,11 @@ export default function Home() {
     const updatedLicenses = [...licenses, newLicense];
     setLicenses(updatedLicenses);
     setAddingLicense(null);
+    void persistLicenses(updatedLicenses).catch((error: unknown) => {
+      setSearchError(
+        error instanceof Error ? error.message : "Failed to save license.",
+      );
+    });
 
     if (selectedName) {
       setHasSearched(true);
@@ -219,12 +282,24 @@ export default function Home() {
               <div className="divider" />
               <UnauthorizedPage />
             </>
+          ) : !dataReady ? (
+            <>
+              <div className="divider" />
+              <p className="welcome-message">Loading saved data…</p>
+            </>
           ) : (
             <>
               <p className="welcome-message">
                 Welcome, <strong>{displayName}</strong>.
               </p>
               <div className="divider" />
+
+              {dataError ? (
+                <p className="form-message error" role="alert">
+                  {dataError}
+                </p>
+              ) : null}
+
               <DashboardFilters
                 engineerNames={engineerNames}
                 selectedName={selectedName}

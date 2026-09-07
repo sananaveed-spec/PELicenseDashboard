@@ -19,6 +19,15 @@ function engineersPath() {
   return path.join(getDataDir(), "engineers.json");
 }
 
+function isMissingFile(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "ENOENT"
+  );
+}
+
 function normalizeLicense(raw: Partial<PeLicense> & { id: string }): PeLicense {
   return {
     id: raw.id,
@@ -39,11 +48,12 @@ function normalizeLicense(raw: Partial<PeLicense> & { id: string }): PeLicense {
 
 export async function readLicenses(): Promise<PeLicense[]> {
   await ensureDataDir();
+
   try {
     const raw = await readFile(licensesPath(), "utf8");
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) {
-      throw new Error("Invalid licenses.json");
+      throw new Error("Invalid licenses.json format.");
     }
     return parsed
       .filter(
@@ -53,7 +63,10 @@ export async function readLicenses(): Promise<PeLicense[]> {
           typeof (item as { id?: unknown }).id === "string",
       )
       .map(normalizeLicense);
-  } catch {
+  } catch (error) {
+    if (!isMissingFile(error)) {
+      throw error;
+    }
     const seeded = initialLicenses.map((license) => normalizeLicense(license));
     await writeLicenses(seeded);
     return seeded;
@@ -72,16 +85,23 @@ export async function writeLicenses(licenses: PeLicense[]) {
 
 export async function readEngineers(): Promise<string[]> {
   await ensureDataDir();
+
   try {
     const raw = await readFile(engineersPath(), "utf8");
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) {
-      throw new Error("Invalid engineers.json");
+      throw new Error("Invalid engineers.json format.");
     }
     return parsed
-      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0,
+      )
       .map((name) => name.trim());
-  } catch {
+  } catch (error) {
+    if (!isMissingFile(error)) {
+      throw error;
+    }
     const seeded = [...initialEngineers];
     await writeEngineers(seeded);
     return seeded;
@@ -90,8 +110,8 @@ export async function readEngineers(): Promise<string[]> {
 
 export async function writeEngineers(engineers: string[]) {
   await ensureDataDir();
-  const unique = [...new Set(engineers.map((name) => name.trim()).filter(Boolean))].sort(
-    (a, b) => a.localeCompare(b),
-  );
+  const unique = [
+    ...new Set(engineers.map((name) => name.trim()).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b));
   await writeFile(engineersPath(), JSON.stringify(unique, null, 2), "utf8");
 }

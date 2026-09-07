@@ -11,8 +11,8 @@ import { toExternalHref } from "@/lib/verify-online";
 
 type LicenseTableProps = {
   licenses: PeLicense[];
-  onUpdate: (license: PeLicense) => void;
-  onDelete: (licenseId: string) => void;
+  onUpdate: (license: PeLicense) => void | Promise<void>;
+  onDelete: (licenseId: string) => void | Promise<void>;
 };
 
 function DownloadIcon() {
@@ -264,12 +264,12 @@ export function LicenseTable({
       {editingLicense ? (
         <LicenseEditDialog
           license={editingLicense}
-          onSave={(updatedLicense) => {
-            onUpdate(updatedLicense);
+          onSave={async (updatedLicense) => {
+            await onUpdate(updatedLicense);
             setEditingLicense(null);
           }}
-          onChange={(updatedLicense) => {
-            onUpdate(updatedLicense);
+          onChange={async (updatedLicense) => {
+            await onUpdate(updatedLicense);
             setEditingLicense(updatedLicense);
           }}
           onClose={() => setEditingLicense(null)}

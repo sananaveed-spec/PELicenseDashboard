@@ -12,9 +12,9 @@ import { stateOptions } from "@/lib/state-abbreviations";
 type LicenseEditDialogProps = {
   license: PeLicense;
   mode?: "add" | "edit";
-  onSave: (license: PeLicense) => void;
+  onSave: (license: PeLicense) => void | Promise<void>;
   /** Called immediately when the attached PDF changes (replace/remove/upload). */
-  onChange?: (license: PeLicense) => void;
+  onChange?: (license: PeLicense) => void | Promise<void>;
   onClose: () => void;
 };
 
@@ -27,6 +27,7 @@ export function LicenseEditDialog({
 }: LicenseEditDialogProps) {
   const [draft, setDraft] = useState(license);
   const [fileBusy, setFileBusy] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -50,9 +51,19 @@ export function LicenseEditDialog({
     }));
   }
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    onSave(draft);
+    setFileError(null);
+    setSaveBusy(true);
+    try {
+      await onSave(draft);
+    } catch (error) {
+      setFileError(
+        error instanceof Error ? error.message : "Failed to save license.",
+      );
+    } finally {
+      setSaveBusy(false);
+    }
   }
 
   async function handleUpload(file: File | undefined) {
@@ -78,7 +89,7 @@ export function LicenseEditDialog({
 
       const updated = { ...draft, fileName: data.fileName };
       setDraft(updated);
-      onChange?.(updated);
+      await onChange?.(updated);
     } catch (error) {
       setFileError(error instanceof Error ? error.message : "Upload failed.");
     } finally {
@@ -115,7 +126,7 @@ export function LicenseEditDialog({
 
       const updated = { ...draft, fileName: null };
       setDraft(updated);
-      onChange?.(updated);
+      await onChange?.(updated);
     } catch (error) {
       setFileError(
         error instanceof Error ? error.message : "Could not remove file.",
@@ -331,11 +342,24 @@ export function LicenseEditDialog({
           </div>
 
           <div className="dialog-actions">
-            <button type="button" className="button secondary" onClick={onClose}>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={saveBusy || fileBusy}
+              onClick={onClose}
+            >
               Cancel
             </button>
-            <button type="submit" className="button primary">
-              {mode === "add" ? "Add License" : "Save"}
+            <button
+              type="submit"
+              className="button primary"
+              disabled={saveBusy || fileBusy}
+            >
+              {saveBusy
+                ? "Saving…"
+                : mode === "add"
+                  ? "Add License"
+                  : "Save"}
             </button>
           </div>
         </form>

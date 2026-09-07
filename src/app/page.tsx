@@ -127,7 +127,7 @@ export default function Home() {
     setResults(searchLicenses(licenses, selectedName, selectedState));
   }
 
-  function handleUpdateLicense(updatedLicense: PeLicense) {
+  async function handleUpdateLicense(updatedLicense: PeLicense) {
     const nextLicenses = licenses.map((license) =>
       license.id === updatedLicense.id ? updatedLicense : license,
     );
@@ -137,24 +137,35 @@ export default function Home() {
 
     setLicenses(nextLicenses);
     setResults(nextResults);
-    void persistLicenses(nextLicenses).catch((error: unknown) => {
-      setSearchError(
-        error instanceof Error ? error.message : "Failed to save license.",
-      );
-    });
+    setSearchError(null);
+
+    try {
+      await persistLicenses(nextLicenses);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save license.";
+      setSearchError(message);
+      throw error;
+    }
   }
 
-  function handleDeleteLicense(licenseId: string) {
+  async function handleDeleteLicense(licenseId: string) {
     const nextLicenses = licenses.filter((license) => license.id !== licenseId);
     const nextResults = results.filter((license) => license.id !== licenseId);
 
     setLicenses(nextLicenses);
     setResults(nextResults);
-    void persistLicenses(nextLicenses).catch((error: unknown) => {
-      setSearchError(
-        error instanceof Error ? error.message : "Failed to save licenses.",
-      );
-    });
+    setSearchError(null);
+
+    try {
+      await persistLicenses(nextLicenses);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save licenses.";
+      setSearchError(message);
+      throw error;
+    }
+
     void fetch(`/api/files/${encodeURIComponent(licenseId)}`, {
       method: "DELETE",
     });
@@ -246,15 +257,20 @@ export default function Home() {
     }
   }
 
-  function handleSaveNewLicense(newLicense: PeLicense) {
+  async function handleSaveNewLicense(newLicense: PeLicense) {
     const updatedLicenses = [...licenses, newLicense];
     setLicenses(updatedLicenses);
-    setAddingLicense(null);
-    void persistLicenses(updatedLicenses).catch((error: unknown) => {
-      setSearchError(
-        error instanceof Error ? error.message : "Failed to save license.",
-      );
-    });
+    setSearchError(null);
+
+    try {
+      await persistLicenses(updatedLicenses);
+      setAddingLicense(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save license.";
+      setSearchError(message);
+      throw error;
+    }
 
     if (selectedName) {
       setHasSearched(true);
